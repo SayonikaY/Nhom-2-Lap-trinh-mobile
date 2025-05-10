@@ -1,0 +1,37 @@
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# =====================================
+# Documentation files
+# =====================================
+
+[*.adoc]
+indent_style = space
+indent_size = 4
+
+[*.md]
+indent_style = space
+indent_size = 4
+
+# =====================================
+# Configuration files
+# =====================================
+
+[*.{yml,yaml}]
+indent_style = space
+indent_size = 2
+
+[*.xml]
+indent_style = space
+indent_size = 4
+
+# =====================================
+# Project source code
+# =====================================
+
+[*.dart]
+indent_style = space
+indent_size = 2
