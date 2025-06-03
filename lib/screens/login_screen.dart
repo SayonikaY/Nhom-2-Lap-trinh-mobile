@@ -41,7 +41,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
         if (nhanVien != null) {
           // Start a new shift using CaLamService
-          final CaLam newCaLam = _caLamService.startNewShift(idNhanVien: nhanVien.maNhanVien);
+          final CaLam newCaLam = _caLamService.startNewShift(maNhanVien: nhanVien.maNhanVien);
 
           Navigator.pushReplacement(
             context,

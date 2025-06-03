@@ -6,16 +6,16 @@ class CaLamService {
   final String _baseUrl = '';
 
   // Creates a new CaLam object locally when a shift starts
-  CaLam startNewShift({required int idNhanVien}) {
-    print('CaLamService: Starting new shift for NhanVien ID: $idNhanVien');
-    return CaLam.startNewShift(idNhanVien: idNhanVien);
+  CaLam startNewShift({required int maNhanVien}) {
+    print('CaLamService: Starting new shift for NhanVien ID: $maNhanVien');
+    return CaLam.startNewShift(idNhanVien: maNhanVien);
   }
 
   Future<void> endShiftAndSave(CaLam caLam) async {
     caLam.ketThucCaLam(); // Set the end time
 
-    print('CaLamService: Ending shift ID: ${caLam.idCaLam}');
-    print('   NhanVien ID: ${caLam.idNhanVien}');
+    print('CaLamService: Ending shift ID: ${caLam.maCaLam}');
+    print('   NhanVien ID: ${caLam.maNhanVien}');
     print('   Start Time: ${caLam.thoiGianBatDau}');
     print('   End Time: ${caLam.thoiGianKetThuc}');
     print('   Total Sales: ${caLam.tongTien}');
@@ -40,7 +40,7 @@ class CaLamService {
 
     await Future.delayed(const Duration(seconds: 1)); // Simulate network delay
     //temp saving test
-    print('CaLamService: Shift ${caLam.idCaLam} processed for saving.');
+    print('CaLamService: Shift ${caLam.maCaLam} processed for saving.');
   }
 }
 

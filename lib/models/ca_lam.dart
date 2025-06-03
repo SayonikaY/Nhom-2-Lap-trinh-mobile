@@ -2,15 +2,15 @@
 import './nhan_vien.dart';
 
 class CaLam {
-  String idCaLam;
-  int idNhanVien;
+  String maCaLam;
+  int maNhanVien;
   DateTime thoiGianBatDau;
   DateTime? thoiGianKetThuc; // Nullable, as the shift might be ongoing
   double tongTien;
 
   CaLam({
-    required this.idCaLam,
-    required this.idNhanVien,
+    required this.maCaLam,
+    required this.maNhanVien,
     required this.thoiGianBatDau,
     this.thoiGianKetThuc,
     this.tongTien = 0.0,
@@ -20,8 +20,8 @@ class CaLam {
     required int idNhanVien,
   }) {
     return CaLam(
-      idCaLam: 'CL_${DateTime.now()}', // Unique ID based on timestamp
-      idNhanVien: idNhanVien,
+      maCaLam: 'CL_${DateTime.now()}', // Unique ID based on timestamp
+      maNhanVien: idNhanVien,
       thoiGianBatDau: DateTime.now(),
       tongTien: 0.0,
     );
