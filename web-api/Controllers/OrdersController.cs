@@ -1,508 +1,281 @@
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using WebApi.Data;
 using WebApi.Models;
+using WebApi.Models.DTOs;
 
 namespace WebApi.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
-public class OrdersController(RestaurantDbContext context, ILogger<OrdersController> logger)
-    : ControllerBase
+[Route("api/orders")]
+[Authorize]
+public class OrdersController(RestaurantDbContext context) : ControllerBase
 {
-    /// <summary>
-    ///     Get all orders
-    /// </summary>
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<OrderDto>>> GetOrders(
+    public async Task<IActionResult> GetOrders(
         [FromQuery] OrderStatus? status = null,
         [FromQuery] Guid? tableId = null,
         [FromQuery] DateTime? fromDate = null,
         [FromQuery] DateTime? toDate = null)
     {
-        try
-        {
-            var query = context.Orders
-                .Include(o => o.Table)
-                .Include(o => o.Items)
-                .ThenInclude(oi => oi.MenuItem)
-                .AsQueryable();
+        var query = context.Orders
+            .Include(o => o.Table)
+            .Include(o => o.Employee)
+            .Include(o => o.Items)
+            .ThenInclude(od => od.MenuItem)
+            .Where(o => !o.IsDeleted);
 
-            if (status.HasValue)
-                query = query.Where(o => o.Status == status.Value);
+        if (status.HasValue)
+            query = query.Where(o => o.Status == status.Value);
 
-            if (tableId.HasValue)
-                query = query.Where(o => o.Table.Id == tableId.Value);
+        if (tableId.HasValue)
+            query = query.Where(o => o.TableId == tableId.Value);
 
-            if (fromDate.HasValue)
-                query = query.Where(o => o.CreatedAt >= fromDate.Value);
+        if (fromDate.HasValue)
+            query = query.Where(o => o.CreatedAt >= fromDate.Value);
 
-            if (toDate.HasValue)
-                query = query.Where(o => o.CreatedAt <= toDate.Value);
+        if (toDate.HasValue)
+            query = query.Where(o => o.CreatedAt <= toDate.Value);
 
-            var orders = await query
-                .OrderByDescending(o => o.CreatedAt)
-                .ToListAsync();
-
-            var orderDtos = orders.Select(o => new OrderDto
+        var orders = await query
+            .OrderByDescending(o => o.CreatedAt)
+            .Select(o => new OrderDto
             {
                 Id = o.Id,
                 Number = o.Number,
+                TableId = o.TableId,
                 TableName = o.Table.Name,
-                TableId = o.Table.Id,
                 Status = o.Status,
                 Note = o.Note,
                 TotalAmount = o.TotalAmount,
+                EmployeeId = o.EmployeeId,
+                EmployeeName = o.Employee.FullName,
                 CreatedAt = o.CreatedAt,
-                Items = o.Items.Select(oi => new OrderItemDto
+                Items = o.Items.Select(od => new OrderDetailDto
                 {
-                    Id = oi.Id,
-                    MenuItemId = oi.MenuItem.Id,
-                    MenuItemName = oi.MenuItem.Name,
-                    Quantity = oi.Quantity,
-                    Price = oi.Price,
-                    TotalPrice = oi.TotalPrice,
+                    Id = od.Id,
+                    MenuItemId = od.MenuItemId,
+                    MenuItemName = od.MenuItem.Name,
+                    Quantity = od.Quantity,
+                    Price = od.Price,
+                    TotalPrice = od.TotalPrice,
                 }).ToList(),
-            }).ToList();
+            })
+            .ToListAsync();
 
-            return Ok(orderDtos);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Error retrieving orders");
-            return StatusCode(500, "Internal server error");
-        }
+        return Ok(orders);
     }
 
-    /// <summary>
-    ///     Get order by ID
-    /// </summary>
     [HttpGet("{id:guid}")]
-    public async Task<ActionResult<OrderDto>> GetOrder(
+    public async Task<IActionResult> GetOrder(
         Guid id)
     {
-        try
-        {
-            var order = await context.Orders
-                .Include(o => o.Table)
-                .Include(o => o.Items)
-                .ThenInclude(oi => oi.MenuItem)
-                .FirstOrDefaultAsync(o => o.Id == id);
-
-            if (order is null)
-                return NotFound($"Order with ID {id} not found");
-
-            var orderDto = new OrderDto
+        var order = await context.Orders
+            .Include(o => o.Table)
+            .Include(o => o.Employee)
+            .Include(o => o.Items)
+            .ThenInclude(od => od.MenuItem)
+            .Where(o => o.Id == id && !o.IsDeleted)
+            .Select(o => new OrderDto
             {
-                Id = order.Id,
-                Number = order.Number,
-                TableName = order.Table.Name,
-                TableId = order.Table.Id,
-                Status = order.Status,
-                Note = order.Note,
-                TotalAmount = order.TotalAmount,
-                CreatedAt = order.CreatedAt,
-                Items = order.Items.Select(oi => new OrderItemDto
+                Id = o.Id,
+                Number = o.Number,
+                TableId = o.TableId,
+                TableName = o.Table.Name,
+                Status = o.Status,
+                Note = o.Note,
+                TotalAmount = o.TotalAmount,
+                EmployeeId = o.EmployeeId,
+                EmployeeName = o.Employee.FullName,
+                CreatedAt = o.CreatedAt,
+                Items = o.Items.Select(od => new OrderDetailDto
                 {
-                    Id = oi.Id,
-                    MenuItemId = oi.MenuItem.Id,
-                    MenuItemName = oi.MenuItem.Name,
-                    Quantity = oi.Quantity,
-                    Price = oi.Price,
-                    TotalPrice = oi.TotalPrice,
+                    Id = od.Id,
+                    MenuItemId = od.MenuItemId,
+                    MenuItemName = od.MenuItem.Name,
+                    Quantity = od.Quantity,
+                    Price = od.Price,
+                    TotalPrice = od.TotalPrice,
                 }).ToList(),
-            };
+            })
+            .FirstOrDefaultAsync();
 
-            return Ok(orderDto);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Error retrieving order with ID {Id}", id);
-            return StatusCode(500, "Internal server error");
-        }
+        if (order is null)
+            return NotFound(new { message = "Order not found" });
+
+        return Ok(order);
     }
 
-    /// <summary>
-    ///     Create a new order
-    /// </summary>
     [HttpPost]
-    public async Task<ActionResult<OrderDto>> CreateOrder(
-        CreateOrderDto dto)
+    public async Task<IActionResult> CreateOrder(
+        [FromBody] CreateOrderDto createOrderDto)
     {
-        try
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
+
+        // Get current user ID
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out var employeeId))
+            return Unauthorized();
+
+        // Verify table exists and is available
+        var table = await context.Tables
+            .FirstOrDefaultAsync(t => t.Id == createOrderDto.TableId && !t.IsDeleted);
+
+        if (table is null)
+            return BadRequest(new { message = "Table not found" });
+
+        if (!table.IsAvailable)
+            return BadRequest(new { message = "Table is not available" });
+
+        // Get menu items and verify they exist and are available
+        var menuItemIds = createOrderDto.Items.Select(i => i.MenuItemId).ToList();
+        var menuItems = await context.MenuItems
+            .Where(m => menuItemIds.Contains(m.Id) && !m.IsDeleted)
+            .ToListAsync();
+
+        if (menuItems.Count != menuItemIds.Count)
+            return BadRequest(new { message = "One or more menu items not found" });
+
+        var unavailableItems = menuItems.Where(m => !m.IsAvailable).ToList();
+        if (unavailableItems.Count != 0)
+            return BadRequest(new
+                { message = $"Menu items not available: {string.Join(", ", unavailableItems.Select(m => m.Name))}" });
+
+        // Create order
+        var order = new Order
         {
-            if (!ModelState.IsValid) return BadRequest(ModelState);
+            Number = Order.CreateNumber(),
+            TableId = createOrderDto.TableId,
+            Note = createOrderDto.Note,
+            EmployeeId = employeeId,
+        };
 
-            // Validate table exists and is available
-            var table = await context.Tables.FindAsync(dto.TableId);
+        // Create order details
+        var orderDetails = new List<OrderDetail>();
+        decimal totalAmount = 0;
 
-            if (table is null)
-                return BadRequest("Table not found");
-
-            if (!table.IsAvailable)
-                return BadRequest("Table is not available");
-
-            // Validate menu items exist and are available
-            var menuItemIds = dto.Items.Select(i => i.MenuItemId).ToList();
-            var menuItems = await context.MenuItems
-                .Where(mi => menuItemIds.Contains(mi.Id))
-                .ToListAsync();
-
-            if (menuItems.Count != menuItemIds.Count)
-                return BadRequest("One or more menu items not found");
-
-            var unavailableItems = menuItems.Where(mi => !mi.IsAvailable).ToList();
-
-            if (unavailableItems.Count != 0)
-                return BadRequest(
-                    $"Menu items are not available: {string.Join(", ", unavailableItems.Select(mi => mi.Name))}");
-
-            var order = new Order
+        foreach (var item in createOrderDto.Items)
+        {
+            var menuItem = menuItems.First(m => m.Id == item.MenuItemId);
+            var orderDetail = new OrderDetail
             {
-                Number = Order.CreateNumber(),
-                Table = table,
-                Note = dto.Note,
-                Status = OrderStatus.Pending,
+                OrderId = order.Id,
+                MenuItemId = item.MenuItemId,
+                Quantity = item.Quantity,
+                Price = menuItem.Price,
             };
 
-            var orderDetails = new List<OrderDetail>();
-            decimal totalAmount = 0;
-
-            foreach (var item in dto.Items)
-            {
-                var menuItem = menuItems.First(mi => mi.Id == item.MenuItemId);
-                var orderDetail = new OrderDetail
-                {
-                    Order = order,
-                    MenuItem = menuItem,
-                    Quantity = item.Quantity,
-                    Price = menuItem.Price,
-                };
-                orderDetails.Add(orderDetail);
-                totalAmount += orderDetail.TotalPrice;
-            }
-
-            order.Items = orderDetails;
-            order.TotalAmount = totalAmount;
-
-            context.Orders.Add(order);
-            await context.SaveChangesAsync();
-
-            // Return the created order
-            var createdOrderDto = new OrderDto
-            {
-                Id = order.Id,
-                Number = order.Number,
-                TableName = table.Name,
-                TableId = table.Id,
-                Status = order.Status,
-                Note = order.Note,
-                TotalAmount = order.TotalAmount,
-                CreatedAt = order.CreatedAt,
-                Items = orderDetails.Select(oi => new OrderItemDto
-                {
-                    Id = oi.Id,
-                    MenuItemId = oi.MenuItem.Id,
-                    MenuItemName = oi.MenuItem.Name,
-                    Quantity = oi.Quantity,
-                    Price = oi.Price,
-                    TotalPrice = oi.TotalPrice,
-                }).ToList(),
-            };
-
-            return CreatedAtAction(nameof(GetOrder), new { id = order.Id }, createdOrderDto);
+            orderDetails.Add(orderDetail);
+            totalAmount += orderDetail.TotalPrice;
         }
-        catch (Exception ex)
+
+        order.TotalAmount = totalAmount;
+
+        context.Orders.Add(order);
+        context.OrderDetails.AddRange(orderDetails);
+        await context.SaveChangesAsync();
+
+        // Load the created order with related data
+        var createdOrder = await context.Orders
+            .Include(o => o.Table)
+            .Include(o => o.Employee)
+            .Include(o => o.Items)
+            .ThenInclude(od => od.MenuItem)
+            .FirstAsync(o => o.Id == order.Id);
+
+        var orderDto = new OrderDto
         {
-            logger.LogError(ex, "Error creating order");
-            return StatusCode(500, "Internal server error");
-        }
+            Id = createdOrder.Id,
+            Number = createdOrder.Number,
+            TableId = createdOrder.TableId,
+            TableName = createdOrder.Table.Name,
+            Status = createdOrder.Status,
+            Note = createdOrder.Note,
+            TotalAmount = createdOrder.TotalAmount,
+            EmployeeId = createdOrder.EmployeeId,
+            EmployeeName = createdOrder.Employee.FullName,
+            CreatedAt = createdOrder.CreatedAt,
+            Items = createdOrder.Items.Select(od => new OrderDetailDto
+            {
+                Id = od.Id,
+                MenuItemId = od.MenuItemId,
+                MenuItemName = od.MenuItem.Name,
+                Quantity = od.Quantity,
+                Price = od.Price,
+                TotalPrice = od.TotalPrice,
+            }).ToList(),
+        };
+
+        return CreatedAtAction(nameof(GetOrder), new { id = order.Id }, orderDto);
     }
 
-    /// <summary>
-    ///     Update order status
-    /// </summary>
-    [HttpPatch("{id:guid}/status")]
+    [HttpPut("{id:guid}/status")]
     public async Task<IActionResult> UpdateOrderStatus(
         Guid id,
-        UpdateOrderStatusDto dto)
+        [FromBody] UpdateOrderStatusDto updateStatusDto)
     {
-        try
-        {
-            if (!ModelState.IsValid) return BadRequest(ModelState);
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
 
-            var order = await context.Orders.FindAsync(id);
+        var order = await context.Orders
+            .FirstOrDefaultAsync(o => o.Id == id && !o.IsDeleted);
 
-            if (order is null)
-                return NotFound($"Order with ID {id} not found");
+        if (order is null)
+            return NotFound(new { message = "Order not found" });
 
-            // Validate status transition
-            if (!IsValidStatusTransition(order.Status, dto.Status))
-                return BadRequest($"Invalid status transition from {order.Status} to {dto.Status}");
+        // Validate status transition
+        if (!IsValidStatusTransition(order.Status, updateStatusDto.Status))
+            return BadRequest(new
+                { message = $"Invalid status transition from {order.Status} to {updateStatusDto.Status}" });
 
-            order.Status = dto.Status;
-            await context.SaveChangesAsync();
+        order.Status = updateStatusDto.Status;
+        await context.SaveChangesAsync();
 
-            return Ok(new { order.Status });
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Error updating order status for ID {Id}", id);
-            return StatusCode(500, "Internal server error");
-        }
+        return Ok(new { message = "Order status updated successfully", status = order.Status });
     }
 
-    /// <summary>
-    ///     Add items to existing order
-    /// </summary>
-    [HttpPost("{id:guid}/items")]
-    public async Task<ActionResult<OrderDto>> AddOrderItems(
-        Guid id,
-        AddOrderItemsDto dto)
+    [HttpDelete("{id:guid}")]
+    public async Task<IActionResult> DeleteOrder(Guid id)
     {
-        try
-        {
-            if (!ModelState.IsValid) return BadRequest(ModelState);
+        var order = await context.Orders
+            .FirstOrDefaultAsync(o => o.Id == id && !o.IsDeleted);
 
-            var order = await context.Orders
-                .Include(o => o.Items)
-                .ThenInclude(oi => oi.MenuItem)
-                .Include(o => o.Table)
-                .FirstOrDefaultAsync(o => o.Id == id);
+        if (order is null)
+            return NotFound(new { message = "Order not found" });
 
-            if (order is null)
-                return NotFound($"Order with ID {id} not found");
+        // Only allow deletion of pending orders
+        if (order.Status != OrderStatus.Pending)
+            return BadRequest(new { message = "Only pending orders can be deleted" });
 
-            if (order.Status is OrderStatus.Completed or OrderStatus.Cancelled)
-                return BadRequest("Cannot add items to completed or cancelled orders");
+        order.IsDeleted = true;
+        await context.SaveChangesAsync();
 
-            // Validate menu items
-            var menuItemIds = dto.Items.Select(i => i.MenuItemId).ToList();
-            var menuItems = await context.MenuItems
-                .Where(mi => menuItemIds.Contains(mi.Id))
-                .ToListAsync();
-
-            if (menuItems.Count != menuItemIds.Count)
-                return BadRequest("One or more menu items not found");
-
-            var unavailableItems = menuItems.Where(mi => !mi.IsAvailable).ToList();
-
-            if (unavailableItems.Count != 0)
-                return BadRequest(
-                    $"Menu items are not available: {string.Join(", ", unavailableItems.Select(mi => mi.Name))}");
-
-            decimal additionalAmount = 0;
-            foreach (var item in dto.Items)
-            {
-                var menuItem = menuItems.First(mi => mi.Id == item.MenuItemId);
-                var orderDetail = new OrderDetail
-                {
-                    Order = order,
-                    MenuItem = menuItem,
-                    Quantity = item.Quantity,
-                    Price = menuItem.Price,
-                };
-                context.OrderDetails.Add(orderDetail);
-                additionalAmount += orderDetail.TotalPrice;
-            }
-
-            order.TotalAmount += additionalAmount;
-            await context.SaveChangesAsync();
-
-            return await GetOrder(id);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Error adding items to order with ID {Id}", id);
-            return StatusCode(500, "Internal server error");
-        }
+        return NoContent();
     }
 
-    /// <summary>
-    ///     Cancel an order
-    /// </summary>
-    [HttpPatch("{id:guid}/cancel")]
-    public async Task<IActionResult> CancelOrder(
-        Guid id)
+    [HttpGet("statuses")]
+    [AllowAnonymous]
+    public IActionResult GetOrderStatuses()
     {
-        try
-        {
-            var order = await context.Orders.FindAsync(id);
+        var statuses = Enum.GetValues<OrderStatus>()
+            .Select(s => new { value = (int)s, name = s.ToString() })
+            .ToList();
 
-            if (order is null)
-                return NotFound($"Order with ID {id} not found");
-
-            if (order.Status == OrderStatus.Completed)
-                return BadRequest("Cannot cancel a completed order");
-
-            if (order.Status == OrderStatus.Cancelled)
-                return BadRequest("Order is already cancelled");
-
-            order.Status = OrderStatus.Cancelled;
-            await context.SaveChangesAsync();
-
-            return Ok(new { order.Status });
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Error cancelling order with ID {Id}", id);
-            return StatusCode(500, "Internal server error");
-        }
+        return Ok(statuses);
     }
 
-    /// <summary>
-    ///     Get orders by status
-    /// </summary>
-    [HttpGet("status/{status}")]
-    public async Task<ActionResult<IEnumerable<OrderDto>>> GetOrdersByStatus(
-        OrderStatus status)
+    private static bool IsValidStatusTransition(OrderStatus currentStatus, OrderStatus newStatus)
     {
-        try
+        return currentStatus switch
         {
-            var orders = await context.Orders
-                .Include(o => o.Table)
-                .Include(o => o.Items)
-                .ThenInclude(oi => oi.MenuItem)
-                .Where(o => o.Status == status)
-                .OrderByDescending(o => o.CreatedAt)
-                .ToListAsync();
-
-            var orderDtos = orders.Select(o => new OrderDto
-            {
-                Id = o.Id,
-                Number = o.Number,
-                TableName = o.Table.Name,
-                TableId = o.Table.Id,
-                Status = o.Status,
-                Note = o.Note,
-                TotalAmount = o.TotalAmount,
-                CreatedAt = o.CreatedAt,
-                Items = o.Items.Select(oi => new OrderItemDto
-                {
-                    Id = oi.Id,
-                    MenuItemId = oi.MenuItem.Id,
-                    MenuItemName = oi.MenuItem.Name,
-                    Quantity = oi.Quantity,
-                    Price = oi.Price,
-                    TotalPrice = oi.TotalPrice,
-                }).ToList(),
-            }).ToList();
-
-            return Ok(orderDtos);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Error retrieving orders with status {Status}", status);
-            return StatusCode(500, "Internal server error");
-        }
-    }
-
-    /// <summary>
-    ///     Get orders summary by date range
-    /// </summary>
-    [HttpGet("summary")]
-    public async Task<ActionResult<OrderSummaryDto>> GetOrdersSummary(
-        [FromQuery] DateTime? fromDate = null,
-        [FromQuery] DateTime? toDate = null)
-    {
-        try
-        {
-            var query = context.Orders.AsQueryable();
-
-            var from = fromDate ?? DateTime.Today;
-            var to = toDate ?? DateTime.Today.AddDays(1);
-
-            query = query.Where(o => o.CreatedAt >= from && o.CreatedAt < to);
-
-            var orders = await query.ToListAsync();
-
-            var summary = new OrderSummaryDto
-            {
-                TotalOrders = orders.Count,
-                PendingOrders = orders.Count(o => o.Status == OrderStatus.Pending),
-                InProgressOrders = orders.Count(o => o.Status == OrderStatus.InProgress),
-                CompletedOrders = orders.Count(o => o.Status == OrderStatus.Completed),
-                CancelledOrders = orders.Count(o => o.Status == OrderStatus.Cancelled),
-                TotalRevenue = orders.Where(o => o.Status == OrderStatus.Completed).Sum(o => o.TotalAmount),
-                FromDate = from,
-                ToDate = to,
-            };
-
-            return Ok(summary);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Error retrieving orders summary");
-            return StatusCode(500, "Internal server error");
-        }
-    }
-
-    private static bool IsValidStatusTransition(OrderStatus current, OrderStatus target)
-    {
-        return current switch
-        {
-            OrderStatus.Pending => target is OrderStatus.InProgress or OrderStatus.Cancelled,
-            OrderStatus.InProgress => target is OrderStatus.Completed or OrderStatus.Cancelled,
+            OrderStatus.Pending => newStatus is OrderStatus.InProgress or OrderStatus.Cancelled,
+            OrderStatus.InProgress => newStatus is OrderStatus.Completed or OrderStatus.Cancelled,
+            OrderStatus.Completed => false, // Completed orders cannot be changed
+            OrderStatus.Cancelled => false, // Cancelled orders cannot be changed
             _ => false,
         };
     }
-}
-
-// DTOs for Order operations
-public class CreateOrderDto
-{
-    public Guid TableId { get; set; }
-    public string? Note { get; set; }
-    public List<CreateOrderItemDto> Items { get; set; } = [];
-}
-
-public class CreateOrderItemDto
-{
-    public Guid MenuItemId { get; set; }
-    public int Quantity { get; set; } = 1;
-}
-
-public class UpdateOrderStatusDto
-{
-    public OrderStatus Status { get; set; }
-}
-
-public class AddOrderItemsDto
-{
-    public List<CreateOrderItemDto> Items { get; set; } = [];
-}
-
-public class OrderDto
-{
-    public Guid Id { get; set; }
-    public string Number { get; set; } = string.Empty;
-    public string TableName { get; set; } = string.Empty;
-    public Guid TableId { get; set; }
-    public OrderStatus Status { get; set; }
-    public string? Note { get; set; }
-    public decimal TotalAmount { get; set; }
-    public DateTime CreatedAt { get; set; }
-    public List<OrderItemDto> Items { get; set; } = [];
-}
-
-public class OrderItemDto
-{
-    public Guid Id { get; set; }
-    public Guid MenuItemId { get; set; }
-    public string MenuItemName { get; set; } = string.Empty;
-    public int Quantity { get; set; }
-    public decimal Price { get; set; }
-    public decimal TotalPrice { get; set; }
-}
-
-public class OrderSummaryDto
-{
-    public int TotalOrders { get; set; }
-    public int PendingOrders { get; set; }
-    public int InProgressOrders { get; set; }
-    public int CompletedOrders { get; set; }
-    public int CancelledOrders { get; set; }
-    public decimal TotalRevenue { get; set; }
-    public DateTime FromDate { get; set; }
-    public DateTime ToDate { get; set; }
 }

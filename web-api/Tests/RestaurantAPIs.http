@@ -1,0 +1,155 @@
+@baseUrl = http://localhost:5127
+@token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy93cy8yMDA1LzA1L2lkZW50aXR5L2NsYWltcy9uYW1laWRlbnRpZmllciI6IjAxOTc0MTAxLWYyOWEtNzNmOS04ZmFmLTUyYjMwODhhMDQ4NyIsImh0dHA6Ly9zY2hlbWFzLnhtbHNvYXAub3JnL3dzLzIwMDUvMDUvaWRlbnRpdHkvY2xhaW1zL25hbWUiOiJuZ3V5ZW52YW5hIiwiRnVsbE5hbWUiOiJOZ3V54buFbiBWxINuIEEiLCJqdGkiOiI3MWY4Y2E2Yy0xOTE3LTQyNjItOWJjMS1hN2Q2NTk3ZmMzZjQiLCJpYXQiOjE3NDkxNDI2NjAsImV4cCI6MTc0OTIyOTA2MCwiaXNzIjoiUmVzdGF1cmFudEFwaSIsImF1ZCI6IlJlc3RhdXJhbnRBcGlVc2VycyJ9.BbNwWl5-BZKmuACBnoPIjJK1V2w8lv1R159CrnUnfwM
+
+### 1. Employee Login
+# @name login
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "username": "nguyenvana",
+  "password": "password123"
+}
+
+### 2. Get All Tables (Requires Authentication)
+GET {{baseUrl}}/api/tables
+Authorization: Bearer {{token}}
+
+### 3. Get Table by ID
+GET {{baseUrl}}/api/tables/1
+Authorization: Bearer {{token}}
+
+### 4. Create New Table
+POST {{baseUrl}}/api/tables
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "Bàn skibidi toilet",
+  "tableNumber": 10,
+  "capacity": 4,
+  "isAvailable": true
+}
+
+### 5. Update Table
+PUT {{baseUrl}}/api/tables/1
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "id": 1,
+  "tableNumber": 1,
+  "capacity": 6,
+  "isAvailable": true
+}
+
+### 6. Get All Menu Items
+GET {{baseUrl}}/api/menuitems
+Authorization: Bearer {{token}}
+
+### 7. Get Menu Item by ID
+GET {{baseUrl}}/api/menuitems/1
+Authorization: Bearer {{token}}
+
+### 8. Create New Menu Item
+POST {{baseUrl}}/api/menuitems
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "Grilled Salmon",
+  "description": "Fresh Atlantic salmon grilled to perfection",
+  "price": 25.99,
+  "category": "Main Course",
+  "isAvailable": true
+}
+
+### 9. Update Menu Item
+PUT {{baseUrl}}/api/menu-items/1
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "id": 1,
+  "name": "Caesar Salad Deluxe",
+  "description": "Fresh romaine lettuce with premium caesar dressing and croutons",
+  "price": 12.99,
+  "category": "Appetizer",
+  "isAvailable": true
+}
+
+### 10. Get All Orders
+GET {{baseUrl}}/api/orders
+Authorization: Bearer {{token}}
+
+### 11. Get Order by ID
+GET {{baseUrl}}/api/orders/1
+Authorization: Bearer {{token}}
+
+### 12. Create New Order
+POST {{baseUrl}}/api/orders
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "tableId": 1,
+  "status": "Pending",
+  "totalAmount": 35.50,
+  "orderItems": [
+    {
+      "menuItemId": 1,
+      "quantity": 2,
+      "unitPrice": 12.99
+    },
+    {
+      "menuItemId": 2,
+      "quantity": 1,
+      "unitPrice": 9.52
+    }
+  ]
+}
+
+### 13. Update Order Status
+PUT {{baseUrl}}/api/orders/1
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "id": 1,
+  "tableId": 1,
+  "status": "Completed",
+  "totalAmount": 35.50,
+  "orderItems": [
+    {
+      "id": 1,
+      "menuItemId": 1,
+      "quantity": 2,
+      "unitPrice": 12.99
+    }
+  ]
+}
+
+### 14. Delete Table
+DELETE {{baseUrl}}/api/tables/10
+Authorization: Bearer {{token}}
+
+### 15. Delete Menu Item
+DELETE {{baseUrl}}/api/menu-items/10
+Authorization: Bearer {{token}}
+
+### 16. Delete Order
+DELETE {{baseUrl}}/api/orders/10
+Authorization: Bearer {{token}}
+
+### 17. Test Authentication with Invalid Token
+GET {{baseUrl}}/api/tables
+Authorization: Bearer invalid-token
+
+### 18. Test Login with Invalid Credentials
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "username": "invalid",
+  "password": "wrong"
+}
