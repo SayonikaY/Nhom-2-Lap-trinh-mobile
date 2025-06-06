@@ -2,20 +2,19 @@ using System.ComponentModel.DataAnnotations;
 
 namespace WebApi.Models;
 
-public class Table
+public class Employee
 {
     [Required]
     [MaxLength(100)]
-    public string Name { get; set; } = string.Empty;
+    public string FullName { get; set; } = null!;
 
     [Required]
-    public int Capacity { get; set; }
-
-    [MaxLength(500)]
-    public string? Description { get; set; }
+    [MaxLength(50)]
+    public string Username { get; set; } = null!;
 
     [Required]
-    public bool IsAvailable { get; set; } = true;
+    [MaxLength(100)]
+    public string PasswordHash { get; set; } = null!;
 
     [Required]
     public bool IsDeleted { get; set; }

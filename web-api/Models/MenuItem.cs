@@ -4,9 +4,6 @@ namespace WebApi.Models;
 
 public class MenuItem
 {
-    [Key]
-    public Guid Id { get; set; } = Guid.CreateVersion7();
-
     [Required]
     [MaxLength(100)]
     public string Name { get; set; } = string.Empty;
@@ -27,10 +24,13 @@ public class MenuItem
     public bool IsAvailable { get; set; } = true;
 
     [Required]
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public bool IsDeleted { get; set; }
+
+    [Key]
+    public Guid Id { get; init; } = Guid.CreateVersion7();
 
     [Required]
-    public bool IsDeleted { get; set; }
+    public DateTime CreatedAt { get; init; } = DateTime.UtcNow;
 }
 
 public enum ItemKind

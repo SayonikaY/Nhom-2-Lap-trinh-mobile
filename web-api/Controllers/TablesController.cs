@@ -1,280 +1,172 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using WebApi.Data;
 using WebApi.Models;
+using WebApi.Models.DTOs;
 
 namespace WebApi.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
-public class TablesController(RestaurantDbContext context, ILogger<TablesController> logger)
-    : ControllerBase
+[Route("api/tables")]
+[Authorize]
+public class TablesController(RestaurantDbContext context) : ControllerBase
 {
-    /// <summary>
-    ///     Get all tables
-    /// </summary>
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<Table>>> GetTables(
-        [FromQuery] bool availableOnly = false)
+    public async Task<IActionResult> GetTables(
+        [FromQuery] bool includeUnavailable = false)
     {
-        try
-        {
-            var query = context.Tables.AsQueryable();
+        var query = context.Tables.Where(t => !t.IsDeleted);
 
-            if (availableOnly)
-                query = query.Where(t => t.IsAvailable);
+        if (!includeUnavailable)
+            query = query.Where(t => t.IsAvailable);
 
-            var tables = await query
-                .OrderBy(t => t.Name)
-                .ToListAsync();
+        var tables = await query
+            .OrderBy(t => t.Name)
+            .Select(t => new TableDto
+            {
+                Id = t.Id,
+                Name = t.Name,
+                Capacity = t.Capacity,
+                Description = t.Description,
+                IsAvailable = t.IsAvailable,
+                CreatedAt = t.CreatedAt,
+            })
+            .ToListAsync();
 
-            return Ok(tables);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Error retrieving tables");
-            return StatusCode(500, "Internal server error");
-        }
+        return Ok(tables);
     }
 
-    /// <summary>
-    ///     Get table by ID
-    /// </summary>
     [HttpGet("{id:guid}")]
-    public async Task<ActionResult<Table>> GetTable(
+    public async Task<IActionResult> GetTable(
         Guid id)
     {
-        try
-        {
-            var table = await context.Tables.FindAsync(id);
-
-            if (table is null)
-                return NotFound($"Table with ID {id} not found");
-
-            return Ok(table);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Error retrieving table with ID {Id}", id);
-            return StatusCode(500, "Internal server error");
-        }
-    }
-
-    /// <summary>
-    ///     Create a new table
-    /// </summary>
-    [HttpPost]
-    public async Task<ActionResult<Table>> CreateTable(
-        CreateTableDto dto)
-    {
-        try
-        {
-            if (!ModelState.IsValid) return BadRequest(ModelState);
-
-            // Check if table with same name already exists
-            var existingTable = await context.Tables
-                // .FirstOrDefaultAsync(t => t.Name.Equals(dto.Name, StringComparison.CurrentCultureIgnoreCase));
-                .FirstOrDefaultAsync(t => EF.Functions.Collate(t.Name, "SQL_Latin1_General_CP1_CI_AI") == dto.Name);
-
-            if (existingTable is not null)
-                return Conflict("A table with this name already exists");
-
-            var table = new Table
+        var table = await context.Tables
+            .Where(t => t.Id == id && !t.IsDeleted)
+            .Select(t => new TableDto
             {
-                Name = dto.Name,
-                Capacity = dto.Capacity,
-                Description = dto.Description,
-                IsAvailable = dto.IsAvailable,
-            };
+                Id = t.Id,
+                Name = t.Name,
+                Capacity = t.Capacity,
+                Description = t.Description,
+                IsAvailable = t.IsAvailable,
+                CreatedAt = t.CreatedAt,
+            })
+            .FirstOrDefaultAsync();
 
-            context.Tables.Add(table);
-            await context.SaveChangesAsync();
+        if (table is null)
+            return NotFound(new { message = "Table not found" });
 
-            return CreatedAtAction(nameof(GetTable), new { id = table.Id }, table);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Error creating table");
-            return StatusCode(500, "Internal server error");
-        }
+        return Ok(table);
     }
 
-    /// <summary>
-    ///     Update an existing table
-    /// </summary>
+    [HttpPost]
+    public async Task<IActionResult> CreateTable(
+        [FromBody] CreateTableDto createTableDto)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
+
+        // Check if table name already exists
+        var existingTable = await context.Tables
+            .FirstOrDefaultAsync(t => t.Name == createTableDto.Name && !t.IsDeleted);
+
+        if (existingTable is not null)
+            return Conflict(new { message = "Table name already exists" });
+
+        var table = new Table
+        {
+            Name = createTableDto.Name,
+            Capacity = createTableDto.Capacity,
+            Description = createTableDto.Description,
+        };
+
+        context.Tables.Add(table);
+        await context.SaveChangesAsync();
+
+        var tableDto = new TableDto
+        {
+            Id = table.Id,
+            Name = table.Name,
+            Capacity = table.Capacity,
+            Description = table.Description,
+            IsAvailable = table.IsAvailable,
+            CreatedAt = table.CreatedAt,
+        };
+
+        return CreatedAtAction(nameof(GetTable), new { id = table.Id }, tableDto);
+    }
+
     [HttpPut("{id:guid}")]
     public async Task<IActionResult> UpdateTable(
         Guid id,
-        UpdateTableDto dto)
+        [FromBody] UpdateTableDto updateTableDto)
     {
-        try
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
+
+        var table = await context.Tables
+            .FirstOrDefaultAsync(t => t.Id == id && !t.IsDeleted);
+
+        if (table is null)
+            return NotFound(new { message = "Table not found" });
+
+        // Check if new name conflicts with existing table
+        if (!string.IsNullOrEmpty(updateTableDto.Name) && updateTableDto.Name != table.Name)
         {
-            if (!ModelState.IsValid) return BadRequest(ModelState);
-
-            var table = await context.Tables.FindAsync(id);
-
-            if (table is null)
-                return NotFound($"Table with ID {id} not found");
-
-            // Check if another table with same name already exists
             var existingTable = await context.Tables
-                // .FirstOrDefaultAsync(t =>
-                //     t.Name.Equals(dto.Name, StringComparison.CurrentCultureIgnoreCase) && t.Id != id);
-                .FirstOrDefaultAsync(t =>
-                    EF.Functions.Collate(t.Name, "SQL_Latin1_General_CP1_CI_AI") == dto.Name && t.Id != id);
+                .FirstOrDefaultAsync(t => t.Name == updateTableDto.Name && !t.IsDeleted && t.Id != id);
 
             if (existingTable is not null)
-                return Conflict("A table with this name already exists");
+                return Conflict(new { message = "Table name already exists" });
 
-            table.Name = dto.Name;
-            table.Capacity = dto.Capacity;
-            table.Description = dto.Description;
-            table.IsAvailable = dto.IsAvailable;
-
-            await context.SaveChangesAsync();
-
-            return NoContent();
+            table.Name = updateTableDto.Name;
         }
-        catch (Exception ex)
+
+        if (updateTableDto.Capacity.HasValue)
+            table.Capacity = updateTableDto.Capacity.Value;
+
+        if (updateTableDto.Description is not null)
+            table.Description = updateTableDto.Description;
+
+        if (updateTableDto.IsAvailable.HasValue)
+            table.IsAvailable = updateTableDto.IsAvailable.Value;
+
+        await context.SaveChangesAsync();
+
+        var tableDto = new TableDto
         {
-            logger.LogError(ex, "Error updating table with ID {Id}", id);
-            return StatusCode(500, "Internal server error");
-        }
+            Id = table.Id,
+            Name = table.Name,
+            Capacity = table.Capacity,
+            Description = table.Description,
+            IsAvailable = table.IsAvailable,
+            CreatedAt = table.CreatedAt,
+        };
+
+        return Ok(tableDto);
     }
 
-    /// <summary>
-    ///     Delete a table (soft delete)
-    /// </summary>
     [HttpDelete("{id:guid}")]
-    public async Task<IActionResult> DeleteTable(
-        Guid id)
+    public async Task<IActionResult> DeleteTable(Guid id)
     {
-        try
-        {
-            var table = await context.Tables.FindAsync(id);
+        var table = await context.Tables
+            .FirstOrDefaultAsync(t => t.Id == id && !t.IsDeleted);
 
-            if (table is null)
-                return NotFound($"Table with ID {id} not found");
+        if (table is null)
+            return NotFound(new { message = "Table not found" });
 
-            // Check if table has any active orders
-            var hasActiveOrders = await context.Orders
-                .AnyAsync(o => o.Table.Id == id &&
-                               o.Status != OrderStatus.Completed &&
-                               o.Status != OrderStatus.Cancelled);
+        // Check if table has active orders
+        var hasActiveOrders = await context.Orders
+            .AnyAsync(o => o.TableId == id && !o.IsDeleted &&
+                           (o.Status == OrderStatus.Pending || o.Status == OrderStatus.InProgress));
 
-            if (hasActiveOrders)
-                return BadRequest("Cannot delete table that has active orders");
+        if (hasActiveOrders)
+            return BadRequest(new { message = "Cannot delete table with active orders" });
 
-            table.IsDeleted = true;
-            await context.SaveChangesAsync();
+        table.IsDeleted = true;
+        await context.SaveChangesAsync();
 
-            return NoContent();
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Error deleting table with ID {Id}", id);
-            return StatusCode(500, "Internal server error");
-        }
+        return NoContent();
     }
-
-    /// <summary>
-    ///     Toggle table availability
-    /// </summary>
-    [HttpPatch("{id:guid}/availability")]
-    public async Task<IActionResult> ToggleAvailability(
-        Guid id)
-    {
-        try
-        {
-            var table = await context.Tables.FindAsync(id);
-
-            if (table is null)
-                return NotFound($"Table with ID {id} not found");
-
-            table.IsAvailable = !table.IsAvailable;
-            await context.SaveChangesAsync();
-
-            return Ok(new { table.IsAvailable });
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Error toggling availability for table with ID {Id}", id);
-            return StatusCode(500, "Internal server error");
-        }
-    }
-
-    /// <summary>
-    ///     Get available tables with specified capacity or more
-    /// </summary>
-    [HttpGet("available")]
-    public async Task<ActionResult<IEnumerable<Table>>> GetAvailableTables(
-        [FromQuery] int? minCapacity = null)
-    {
-        try
-        {
-            var query = context.Tables.Where(t => t.IsAvailable);
-
-            if (minCapacity.HasValue)
-                query = query.Where(t => t.Capacity >= minCapacity.Value);
-
-            var tables = await query
-                .OrderBy(t => t.Capacity)
-                .ThenBy(t => t.Name)
-                .ToListAsync();
-
-            return Ok(tables);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Error retrieving available tables");
-            return StatusCode(500, "Internal server error");
-        }
-    }
-
-    /// <summary>
-    ///     Get table with current active orders
-    /// </summary>
-    [HttpGet("{id:guid}/orders")]
-    public async Task<ActionResult<IEnumerable<Order>>> GetTableOrders(
-        Guid id)
-    {
-        try
-        {
-            var table = await context.Tables.FindAsync(id);
-
-            if (table is null)
-                return NotFound($"Table with ID {id} not found");
-
-            var orders = await context.Orders
-                .Include(o => o.Items)
-                .ThenInclude(oi => oi.MenuItem)
-                .Where(o => o.Table.Id == id)
-                .OrderByDescending(o => o.CreatedAt)
-                .ToListAsync();
-
-            return Ok(orders);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Error retrieving orders for table with ID {Id}", id);
-            return StatusCode(500, "Internal server error");
-        }
-    }
-}
-
-// DTOs for Table operations
-public class CreateTableDto
-{
-    public string Name { get; set; } = string.Empty;
-    public int Capacity { get; set; }
-    public string? Description { get; set; }
-    public bool IsAvailable { get; set; } = true;
-}
-
-public class UpdateTableDto
-{
-    public string Name { get; set; } = string.Empty;
-    public int Capacity { get; set; }
-    public string? Description { get; set; }
-    public bool IsAvailable { get; set; }
 }

@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using WebApi.Models;
+using WebApi.Services;
 
 namespace WebApi.Data;
 
@@ -8,6 +9,7 @@ public class RestaurantDbContext(DbContextOptions<RestaurantDbContext> options)
 {
     public DbSet<Table> Tables { get; set; }
     public DbSet<MenuItem> MenuItems { get; set; }
+    public DbSet<Employee> Employees { get; set; }
     public DbSet<Order> Orders { get; set; }
     public DbSet<OrderDetail> OrderDetails { get; set; }
 
@@ -82,6 +84,31 @@ public class RestaurantDbContext(DbContextOptions<RestaurantDbContext> options)
                 .IsUnique();
         });
 
+        modelBuilder.Entity<Employee>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.Id)
+                .ValueGeneratedOnAdd();
+            entity.Property(e => e.FullName)
+                .HasMaxLength(100)
+                .IsRequired();
+            entity.Property(e => e.Username)
+                .HasMaxLength(50)
+                .IsRequired();
+            entity.Property(e => e.PasswordHash)
+                .HasMaxLength(200)
+                .IsRequired();
+            entity.Property(e => e.CreatedAt)
+                .IsRequired();
+            entity.Property(e => e.IsDeleted)
+                .IsRequired()
+                .HasDefaultValue(false);
+
+            entity.HasIndex(e => e.Username)
+                .IsUnique();
+        });
+
         modelBuilder.Entity<Order>(entity =>
         {
             entity.HasKey(o => o.Id);
@@ -111,6 +138,10 @@ public class RestaurantDbContext(DbContextOptions<RestaurantDbContext> options)
             entity.HasOne(o => o.Table)
                 .WithMany()
                 .HasForeignKey(o => o.TableId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(o => o.Employee)
+                .WithMany()
+                .HasForeignKey(o => o.EmployeeId)
                 .OnDelete(DeleteBehavior.Restrict);
             entity.HasMany(o => o.Items)
                 .WithOne(od => od.Order)
@@ -238,22 +269,48 @@ public class RestaurantDbContext(DbContextOptions<RestaurantDbContext> options)
         ];
         modelBuilder.Entity<MenuItem>().HasData(menuItems);
 
+        var passwordService = new PasswordService();
+
+        var employee1 = new Employee
+        {
+            FullName = "Nguyễn Văn A",
+            Username = "nguyenvana",
+            PasswordHash = passwordService.HashPassword("password123"),
+        };
+
+        var employee2 = new Employee
+        {
+            FullName = "Trần Thị B",
+            Username = "tranthib",
+            PasswordHash = passwordService.HashPassword("password456"),
+        };
+
+        List<Employee> employees =
+        [
+            employee1,
+            employee2,
+        ];
+        modelBuilder.Entity<Employee>().HasData(employees);
+
         var order1 = new Order
         {
             Number = Order.CreateNumber(),
             TableId = table1.Id,
+            EmployeeId = employee1.Id,
         };
 
         var order2 = new Order
         {
             Number = Order.CreateNumber(),
             TableId = table2.Id,
+            EmployeeId = employee2.Id,
         };
 
         var order3 = new Order
         {
             Number = Order.CreateNumber(),
             TableId = table3.Id,
+            EmployeeId = employee1.Id,
         };
 
         List<Order> orders =
