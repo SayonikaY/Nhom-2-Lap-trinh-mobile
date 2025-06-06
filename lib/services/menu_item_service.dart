@@ -36,21 +36,9 @@ class MenuItemService {
   }
 
   /// Create a new menu item
-  static Future<ApiResponse<MenuItem>> createMenuItem({
-    required String name,
-    required ItemKind kind,
-    required double price,
-    String? description,
-    String? imageUrl,
-  }) async {
-    final request = CreateMenuItemRequest(
-      name: name,
-      kind: kind,
-      price: price,
-      description: description,
-      imageUrl: imageUrl,
-    );
-
+  static Future<ApiResponse<MenuItem>> createMenuItem(
+    CreateMenuItemRequest request,
+  ) async {
     return await ApiClient.post(
       _endpoint,
       request.toJson(),
@@ -59,29 +47,20 @@ class MenuItemService {
   }
 
   /// Update an existing menu item
-  static Future<ApiResponse<MenuItem>> updateMenuItem({
-    required String id,
-    String? name,
-    ItemKind? kind,
-    double? price,
-    String? description,
-    String? imageUrl,
-    bool? isAvailable,
-  }) async {
-    final request = UpdateMenuItemRequest(
-      name: name,
-      kind: kind,
-      price: price,
-      description: description,
-      imageUrl: imageUrl,
-      isAvailable: isAvailable,
-    );
-
+  static Future<ApiResponse<MenuItem>> updateMenuItem(
+    String id,
+    UpdateMenuItemRequest request,
+  ) async {
     return await ApiClient.put(
       '$_endpoint/$id',
       request.toJson(),
       (json) => MenuItem.fromJson(json),
     );
+  }
+
+  /// Get all menu items
+  static Future<ApiResponse<List<MenuItem>>> getAllMenuItems() async {
+    return await getMenuItems(includeUnavailable: true);
   }
 
   /// Delete a menu item
@@ -108,7 +87,10 @@ class MenuItemService {
     required String id,
     required bool isAvailable,
   }) async {
-    return await updateMenuItem(id: id, isAvailable: isAvailable);
+    return await updateMenuItem(
+      id,
+      UpdateMenuItemRequest(isAvailable: isAvailable),
+    );
   }
 
   /// Get all item kinds/categories

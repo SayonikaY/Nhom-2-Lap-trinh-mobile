@@ -92,10 +92,20 @@ class RestaurantApiService {
     String? note,
     required List<({String menuItemId, int quantity})> items,
   }) async {
-    return await OrderService.createOrderWithItems(
-      tableId: tableId,
-      note: note,
-      items: items,
+    return await OrderService.createOrder(
+      CreateOrderRequest(
+        tableId: tableId,
+        note: note,
+        items:
+            items
+                .map(
+                  (item) => CreateOrderDetailRequest(
+                    menuItemId: item.menuItemId,
+                    quantity: item.quantity,
+                  ),
+                )
+                .toList(),
+      ),
     );
   }
 
@@ -104,7 +114,7 @@ class RestaurantApiService {
     required String orderId,
     required OrderStatus status,
   }) async {
-    return await OrderService.updateOrderStatus(id: orderId, status: status);
+    return await OrderService.updateOrderStatus(orderId, status);
   }
 
   /// Get orders for a specific table

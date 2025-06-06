@@ -65,6 +65,7 @@ class CreateMenuItemRequest {
   final double price;
   final String? description;
   final String? imageUrl;
+  final bool isAvailable;
 
   CreateMenuItemRequest({
     required this.name,
@@ -72,6 +73,7 @@ class CreateMenuItemRequest {
     required this.price,
     this.description,
     this.imageUrl,
+    this.isAvailable = true,
   });
 
   Map<String, dynamic> toJson() {
@@ -81,6 +83,7 @@ class CreateMenuItemRequest {
       'price': price,
       'description': description,
       'imageUrl': imageUrl,
+      'isAvailable': isAvailable,
     };
   }
 }

@@ -30,17 +30,9 @@ class TableService {
   }
 
   /// Create a new table
-  static Future<ApiResponse<RestaurantTable>> createTable({
-    required String name,
-    required int capacity,
-    String? description,
-  }) async {
-    final request = CreateTableRequest(
-      name: name,
-      capacity: capacity,
-      description: description,
-    );
-
+  static Future<ApiResponse<RestaurantTable>> createTable(
+    CreateTableRequest request,
+  ) async {
     return await ApiClient.post(
       _endpoint,
       request.toJson(),
@@ -49,25 +41,20 @@ class TableService {
   }
 
   /// Update an existing table
-  static Future<ApiResponse<RestaurantTable>> updateTable({
-    required String id,
-    String? name,
-    int? capacity,
-    String? description,
-    bool? isAvailable,
-  }) async {
-    final request = UpdateTableRequest(
-      name: name,
-      capacity: capacity,
-      description: description,
-      isAvailable: isAvailable,
-    );
-
+  static Future<ApiResponse<RestaurantTable>> updateTable(
+    String id,
+    UpdateTableRequest request,
+  ) async {
     return await ApiClient.put(
       '$_endpoint/$id',
       request.toJson(),
       (json) => RestaurantTable.fromJson(json),
     );
+  }
+
+  /// Get all tables
+  static Future<ApiResponse<List<RestaurantTable>>> getAllTables() async {
+    return await getTables(includeUnavailable: true);
   }
 
   /// Delete a table
@@ -85,6 +72,6 @@ class TableService {
     required String id,
     required bool isAvailable,
   }) async {
-    return await updateTable(id: id, isAvailable: isAvailable);
+    return await updateTable(id, UpdateTableRequest(isAvailable: isAvailable));
   }
 }

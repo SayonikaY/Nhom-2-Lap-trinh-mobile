@@ -46,17 +46,9 @@ class OrderService {
   }
 
   /// Create a new order
-  static Future<ApiResponse<Order>> createOrder({
-    required String tableId,
-    String? note,
-    required List<CreateOrderDetailRequest> items,
-  }) async {
-    final request = CreateOrderRequest(
-      tableId: tableId,
-      note: note,
-      items: items,
-    );
-
+  static Future<ApiResponse<Order>> createOrder(
+    CreateOrderRequest request,
+  ) async {
     return await ApiClient.post(
       _endpoint,
       request.toJson(),
@@ -65,10 +57,10 @@ class OrderService {
   }
 
   /// Update order status
-  static Future<ApiResponse<Map<String, dynamic>>> updateOrderStatus({
-    required String id,
-    required OrderStatus status,
-  }) async {
+  static Future<ApiResponse<Map<String, dynamic>>> updateOrderStatus(
+    String id,
+    OrderStatus status,
+  ) async {
     final request = UpdateOrderStatusRequest(status: status);
 
     return await ApiClient.put(
@@ -76,6 +68,11 @@ class OrderService {
       request.toJson(),
       (json) => json,
     );
+  }
+
+  /// Get all orders
+  static Future<ApiResponse<List<Order>>> getAllOrders() async {
+    return await getOrders();
   }
 
   /// Delete an order (only pending orders)
@@ -125,21 +122,21 @@ class OrderService {
   static Future<ApiResponse<Map<String, dynamic>>> markOrderAsInProgress(
     String id,
   ) async {
-    return await updateOrderStatus(id: id, status: OrderStatus.inProgress);
+    return await updateOrderStatus(id, OrderStatus.inProgress);
   }
 
   /// Mark order as completed
   static Future<ApiResponse<Map<String, dynamic>>> markOrderAsCompleted(
     String id,
   ) async {
-    return await updateOrderStatus(id: id, status: OrderStatus.completed);
+    return await updateOrderStatus(id, OrderStatus.completed);
   }
 
   /// Cancel order
   static Future<ApiResponse<Map<String, dynamic>>> cancelOrder(
     String id,
   ) async {
-    return await updateOrderStatus(id: id, status: OrderStatus.cancelled);
+    return await updateOrderStatus(id, OrderStatus.cancelled);
   }
 
   /// Get all order statuses
@@ -150,24 +147,5 @@ class OrderService {
       (json) => json,
       includeAuth: false,
     );
-  }
-
-  /// Create order with menu items
-  static Future<ApiResponse<Order>> createOrderWithItems({
-    required String tableId,
-    String? note,
-    required List<({String menuItemId, int quantity})> items,
-  }) async {
-    final orderItems =
-        items
-            .map(
-              (item) => CreateOrderDetailRequest(
-                menuItemId: item.menuItemId,
-                quantity: item.quantity,
-              ),
-            )
-            .toList();
-
-    return await createOrder(tableId: tableId, note: note, items: orderItems);
   }
 }
