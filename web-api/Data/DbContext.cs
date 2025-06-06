@@ -209,7 +209,7 @@ public class RestaurantDbContext(DbContextOptions<RestaurantDbContext> options)
             Name = "Phở Bò",
             Kind = ItemKind.MainCourse,
             Price = 50_000,
-            ImageUrl = new Uri("http://localhost:5127/images/pho-bo.jpg"),
+            ImageUrl = new Uri("http://10.0.2.2:5127/images/pho-bo.jpg"),
             Description = "Phở bò truyền thống với nước dùng đậm đà.",
         };
 
@@ -218,7 +218,7 @@ public class RestaurantDbContext(DbContextOptions<RestaurantDbContext> options)
             Name = "Bánh Mì Thịt Nướng",
             Kind = ItemKind.MainCourse,
             Price = 30_000,
-            ImageUrl = new Uri("http://localhost:5127/images/banh-mi-thit-nuong.jpg"),
+            ImageUrl = new Uri("http://10.0.2.2:5127/images/banh-mi-thit-nuong.jpg"),
             Description = "Bánh mì thịt nướng thơm ngon, giòn rụm.",
         };
 
@@ -227,7 +227,7 @@ public class RestaurantDbContext(DbContextOptions<RestaurantDbContext> options)
             Name = "Trà Sữa Trân Châu",
             Kind = ItemKind.Beverage,
             Price = 20_000,
-            ImageUrl = new Uri("http://localhost:5127/images/tra-sua-tran-chau.jpg"),
+            ImageUrl = new Uri("http://10.0.2.2:5127/images/tra-sua-tran-chau.jpg"),
             Description = "Trà sữa thơm ngon với trân châu dai.",
         };
 
@@ -236,7 +236,7 @@ public class RestaurantDbContext(DbContextOptions<RestaurantDbContext> options)
             Name = "Gỏi Cuốn",
             Kind = ItemKind.Appetizer,
             Price = 15_000,
-            ImageUrl = new Uri("http://localhost:5127/images/goi-cuon.jpg"),
+            ImageUrl = new Uri("http://10.0.2.2:5127/images/goi-cuon.jpg"),
             Description = "Gỏi cuốn tươi ngon với nước chấm đặc biệt.",
         };
 
@@ -245,7 +245,7 @@ public class RestaurantDbContext(DbContextOptions<RestaurantDbContext> options)
             Name = "Bánh Flan",
             Kind = ItemKind.Dessert,
             Price = 10_000,
-            ImageUrl = new Uri("http://localhost:5127/images/banh-flan.jpg"),
+            ImageUrl = new Uri("http://10.0.2.2:5127/images/banh-flan.jpg"),
             Description = "Bánh flan mềm mịn, ngọt ngào.",
         };
 
@@ -254,7 +254,7 @@ public class RestaurantDbContext(DbContextOptions<RestaurantDbContext> options)
             Name = "Cà Phê Sữa Đá",
             Kind = ItemKind.Beverage,
             Price = 25_000,
-            ImageUrl = new Uri("http://localhost:5127/images/ca-phe-sua-da.jpg"),
+            ImageUrl = new Uri("http://10.0.2.2:5127/images/ca-phe-sua-da.jpg"),
             Description = "Cà phê sữa đá thơm ngon, đậm đà.",
         };
 
@@ -338,6 +338,7 @@ public class RestaurantDbContext(DbContextOptions<RestaurantDbContext> options)
                 Price = menuItem3.Price,
             },
         ];
+        order1.TotalAmount = order1Details.Sum(od => od.Quantity * od.Price);
 
         List<OrderDetail> order2Details =
         [
@@ -356,6 +357,7 @@ public class RestaurantDbContext(DbContextOptions<RestaurantDbContext> options)
                 Price = menuItem4.Price,
             },
         ];
+        order2.TotalAmount = order2Details.Sum(od => od.Quantity * od.Price);
 
         List<OrderDetail> order3Details =
         [
@@ -374,6 +376,7 @@ public class RestaurantDbContext(DbContextOptions<RestaurantDbContext> options)
                 Price = menuItem6.Price,
             },
         ];
+        order3.TotalAmount = order3Details.Sum(od => od.Quantity * od.Price);
 
         List<OrderDetail> orderDetails =
         [
