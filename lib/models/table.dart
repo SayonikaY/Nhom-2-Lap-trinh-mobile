@@ -1,3 +1,5 @@
+import 'order.dart';
+
 class RestaurantTable {
   final String id;
   final String name;
@@ -5,6 +7,7 @@ class RestaurantTable {
   final String? description;
   final bool isAvailable;
   final DateTime createdAt;
+  final Order? currentOrder;
 
   RestaurantTable({
     required this.id,
@@ -13,16 +16,22 @@ class RestaurantTable {
     this.description,
     required this.isAvailable,
     required this.createdAt,
+    this.currentOrder,
   });
 
-  factory RestaurantTable.fromJson(Map<String, dynamic> json) => RestaurantTable(
-    id: json['id'],
-    name: json['name'],
-    capacity: json['capacity'],
-    description: json['description'],
-    isAvailable: json['isAvailable'],
-    createdAt: DateTime.parse(json['createdAt']),
-  );
+  factory RestaurantTable.fromJson(Map<String, dynamic> json) =>
+      RestaurantTable(
+        id: json['id'],
+        name: json['name'],
+        capacity: json['capacity'],
+        description: json['description'],
+        isAvailable: json['isAvailable'],
+        createdAt: DateTime.parse(json['createdAt']),
+        currentOrder:
+            json['currentOrder'] != null
+                ? Order.fromJson(json['currentOrder'])
+                : null,
+      );
 
   Map<String, dynamic> toJson() {
     return {
@@ -32,8 +41,11 @@ class RestaurantTable {
       'description': description,
       'isAvailable': isAvailable,
       'createdAt': createdAt.toIso8601String(),
+      'currentOrder': currentOrder?.toJson(),
     };
   }
+
+  bool get isAvailableForPreOrder => isAvailable;
 }
 
 class CreateTableRequest {
@@ -48,11 +60,7 @@ class CreateTableRequest {
   });
 
   Map<String, dynamic> toJson() {
-    return {
-      'name': name,
-      'capacity': capacity,
-      'description': description,
-    };
+    return {'name': name, 'capacity': capacity, 'description': description};
   }
 }
 

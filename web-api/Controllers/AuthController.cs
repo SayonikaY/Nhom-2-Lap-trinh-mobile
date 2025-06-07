@@ -11,8 +11,10 @@ namespace WebApi.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public class AuthController(RestaurantDbContext context,
-    IJwtService jwtService, IPasswordService passwordService)
+public class AuthController(
+    RestaurantDbContext context,
+    IJwtService jwtService,
+    IPasswordService passwordService)
     : ControllerBase
 {
     [HttpPost("login")]

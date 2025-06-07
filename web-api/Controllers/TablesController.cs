@@ -22,6 +22,13 @@ public class TablesController(RestaurantDbContext context) : ControllerBase
             query = query.Where(t => t.IsAvailable);
 
         var tables = await query
+            .Include(t => t.Orders.Where(o =>
+                !o.IsDeleted && (o.Status == OrderStatus.Pending || o.Status == OrderStatus.InProgress)))
+            .ThenInclude(o => o.Employee)
+            .Include(t => t.Orders.Where(o =>
+                !o.IsDeleted && (o.Status == OrderStatus.Pending || o.Status == OrderStatus.InProgress)))
+            .ThenInclude(o => o.Items)
+            .ThenInclude(od => od.MenuItem)
             .OrderBy(t => t.Name)
             .Select(t => new TableDto
             {
@@ -31,8 +38,37 @@ public class TablesController(RestaurantDbContext context) : ControllerBase
                 Description = t.Description,
                 IsAvailable = t.IsAvailable,
                 CreatedAt = t.CreatedAt,
+                CurrentOrder = t.Orders
+                    .Where(o => !o.IsDeleted && (o.Status == OrderStatus.Pending || o.Status == OrderStatus.InProgress))
+                    .OrderByDescending(o => o.CreatedAt)
+                    .Select(o => new OrderDto
+                    {
+                        Id = o.Id,
+                        Number = o.Number,
+                        TableId = o.TableId,
+                        TableName = t.Name,
+                        Status = o.Status,
+                        Note = o.Note,
+                        TotalAmount = o.TotalAmount,
+                        EmployeeId = o.EmployeeId,
+                        EmployeeName = o.Employee.FullName,
+                        CreatedAt = o.CreatedAt,
+                        Items = o.Items.Select(od => new OrderDetailDto
+                        {
+                            Id = od.Id,
+                            MenuItemId = od.MenuItemId,
+                            MenuItemName = od.MenuItem.Name,
+                            Quantity = od.Quantity,
+                            Price = od.Price,
+                            TotalPrice = od.TotalPrice,
+                        }).ToList(),
+                    }).FirstOrDefault(),
             })
             .ToListAsync();
+
+        foreach (var table in tables)
+            if (table.CurrentOrder?.Status is OrderStatus.Pending or OrderStatus.InProgress)
+                table.IsAvailable = false;
 
         return Ok(tables);
     }
@@ -42,6 +78,13 @@ public class TablesController(RestaurantDbContext context) : ControllerBase
         Guid id)
     {
         var table = await context.Tables
+            .Include(t => t.Orders.Where(o =>
+                !o.IsDeleted && (o.Status == OrderStatus.Pending || o.Status == OrderStatus.InProgress)))
+            .ThenInclude(o => o.Employee)
+            .Include(t => t.Orders.Where(o =>
+                !o.IsDeleted && (o.Status == OrderStatus.Pending || o.Status == OrderStatus.InProgress)))
+            .ThenInclude(o => o.Items)
+            .ThenInclude(od => od.MenuItem)
             .Where(t => t.Id == id && !t.IsDeleted)
             .Select(t => new TableDto
             {
@@ -51,11 +94,39 @@ public class TablesController(RestaurantDbContext context) : ControllerBase
                 Description = t.Description,
                 IsAvailable = t.IsAvailable,
                 CreatedAt = t.CreatedAt,
+                CurrentOrder = t.Orders
+                    .Where(o => !o.IsDeleted && (o.Status == OrderStatus.Pending || o.Status == OrderStatus.InProgress))
+                    .OrderByDescending(o => o.CreatedAt)
+                    .Select(o => new OrderDto
+                    {
+                        Id = o.Id,
+                        Number = o.Number,
+                        TableId = o.TableId,
+                        TableName = t.Name,
+                        Status = o.Status,
+                        Note = o.Note,
+                        TotalAmount = o.TotalAmount,
+                        EmployeeId = o.EmployeeId,
+                        EmployeeName = o.Employee.FullName,
+                        CreatedAt = o.CreatedAt,
+                        Items = o.Items.Select(od => new OrderDetailDto
+                        {
+                            Id = od.Id,
+                            MenuItemId = od.MenuItemId,
+                            MenuItemName = od.MenuItem.Name,
+                            Quantity = od.Quantity,
+                            Price = od.Price,
+                            TotalPrice = od.TotalPrice,
+                        }).ToList(),
+                    }).FirstOrDefault(),
             })
             .FirstOrDefaultAsync();
 
         if (table is null)
             return NotFound(new { message = "Table not found" });
+
+        if (table.CurrentOrder?.Status is OrderStatus.Pending or OrderStatus.InProgress)
+            table.IsAvailable = false;
 
         return Ok(table);
     }
@@ -129,8 +200,18 @@ public class TablesController(RestaurantDbContext context) : ControllerBase
         if (updateTableDto.Description is not null)
             table.Description = updateTableDto.Description;
 
-        if (updateTableDto.IsAvailable.HasValue)
+        if (updateTableDto.IsAvailable.HasValue && updateTableDto.IsAvailable.Value != table.IsAvailable)
+        {
+            // Check if there are active orders
+            var hasActiveOrders = await context.Orders
+                .AnyAsync(o => o.TableId == id && !o.IsDeleted &&
+                               (o.Status == OrderStatus.Pending || o.Status == OrderStatus.InProgress));
+
+            if (hasActiveOrders && !updateTableDto.IsAvailable.Value)
+                return BadRequest(new { message = "Cannot set table as unavailable with active orders" });
+
             table.IsAvailable = updateTableDto.IsAvailable.Value;
+        }
 
         await context.SaveChangesAsync();
 

@@ -20,6 +20,8 @@ public class Table
     [Required]
     public bool IsDeleted { get; set; }
 
+    public ICollection<Order> Orders { get; set; } = new List<Order>();
+
     [Key]
     public Guid Id { get; init; } = Guid.CreateVersion7();
 

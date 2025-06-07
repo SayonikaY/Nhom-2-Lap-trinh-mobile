@@ -4,7 +4,6 @@ export 'models/employee.dart';
 export 'models/menu_item.dart';
 export 'models/order.dart';
 export 'models/table.dart';
-
 // Services
 export 'services/api_client.dart';
 export 'services/auth_service.dart';

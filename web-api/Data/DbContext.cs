@@ -136,7 +136,7 @@ public class RestaurantDbContext(DbContextOptions<RestaurantDbContext> options)
                 .IsUnique();
 
             entity.HasOne(o => o.Table)
-                .WithMany()
+                .WithMany(t => t.Orders)
                 .HasForeignKey(o => o.TableId)
                 .OnDelete(DeleteBehavior.Restrict);
             entity.HasOne(o => o.Employee)
@@ -172,12 +172,36 @@ public class RestaurantDbContext(DbContextOptions<RestaurantDbContext> options)
 
     private static void SeedData(ModelBuilder modelBuilder)
     {
+        var passwordService = new PasswordService();
+
+        var employee1 = new Employee
+        {
+            FullName = "Nguyễn Văn A",
+            Username = "nguyenvana",
+            PasswordHash = passwordService.HashPassword("password123"),
+        };
+
+        var employee2 = new Employee
+        {
+            FullName = "Trần Thị B",
+            Username = "tranthib",
+            PasswordHash = passwordService.HashPassword("password456"),
+        };
+
+        List<Employee> employees =
+        [
+            employee1,
+            employee2,
+        ];
+        modelBuilder.Entity<Employee>().HasData(employees);
+
         var table1 = new Table
         {
             Name = "Bàn 1",
             Capacity = 4,
             Description = "Bàn gần cửa sổ",
             IsAvailable = true,
+            CreatedAt = DateTime.UtcNow.AddDays(-20),
         };
 
         var table2 = new Table
@@ -185,7 +209,8 @@ public class RestaurantDbContext(DbContextOptions<RestaurantDbContext> options)
             Name = "Bàn 2",
             Capacity = 6,
             Description = "Bàn ở giữa nhà",
-            IsAvailable = true,
+            IsAvailable = false,
+            CreatedAt = DateTime.UtcNow.AddDays(-20),
         };
 
         var table3 = new Table
@@ -194,6 +219,15 @@ public class RestaurantDbContext(DbContextOptions<RestaurantDbContext> options)
             Capacity = 2,
             Description = "Bàn nhỏ ở góc",
             IsAvailable = false,
+            CreatedAt = DateTime.UtcNow.AddDays(-20),
+        };
+
+        var table4 = new Table
+        {
+            Name = "Bàn 4",
+            Capacity = 8,
+            Description = "Bàn lớn cho nhóm đông người",
+            CreatedAt = DateTime.UtcNow.AddDays(-3),
         };
 
         List<Table> tables =
@@ -201,6 +235,7 @@ public class RestaurantDbContext(DbContextOptions<RestaurantDbContext> options)
             table1,
             table2,
             table3,
+            table4,
         ];
         modelBuilder.Entity<Table>().HasData(tables);
 
@@ -269,48 +304,33 @@ public class RestaurantDbContext(DbContextOptions<RestaurantDbContext> options)
         ];
         modelBuilder.Entity<MenuItem>().HasData(menuItems);
 
-        var passwordService = new PasswordService();
-
-        var employee1 = new Employee
-        {
-            FullName = "Nguyễn Văn A",
-            Username = "nguyenvana",
-            PasswordHash = passwordService.HashPassword("password123"),
-        };
-
-        var employee2 = new Employee
-        {
-            FullName = "Trần Thị B",
-            Username = "tranthib",
-            PasswordHash = passwordService.HashPassword("password456"),
-        };
-
-        List<Employee> employees =
-        [
-            employee1,
-            employee2,
-        ];
-        modelBuilder.Entity<Employee>().HasData(employees);
-
+        var order1CreatedAt = DateTime.UtcNow.AddDays(-1);
         var order1 = new Order
         {
             Number = Order.CreateNumber(),
             TableId = table1.Id,
             EmployeeId = employee1.Id,
+            Status = OrderStatus.Completed,
+            CreatedAt = order1CreatedAt,
         };
 
+        var order2CreatedAt = DateTime.UtcNow.AddMinutes(-10);
         var order2 = new Order
         {
             Number = Order.CreateNumber(),
             TableId = table2.Id,
             EmployeeId = employee2.Id,
+            Status = OrderStatus.InProgress,
+            CreatedAt = order2CreatedAt,
         };
 
+        var order3CreatedAt = DateTime.UtcNow;
         var order3 = new Order
         {
             Number = Order.CreateNumber(),
             TableId = table3.Id,
             EmployeeId = employee1.Id,
+            CreatedAt = order3CreatedAt,
         };
 
         List<Order> orders =
@@ -329,6 +349,7 @@ public class RestaurantDbContext(DbContextOptions<RestaurantDbContext> options)
                 MenuItemId = menuItem1.Id,
                 Quantity = 2,
                 Price = menuItem1.Price,
+                CreatedAt = order1CreatedAt,
             },
             new()
             {
@@ -336,6 +357,7 @@ public class RestaurantDbContext(DbContextOptions<RestaurantDbContext> options)
                 MenuItemId = menuItem3.Id,
                 Quantity = 1,
                 Price = menuItem3.Price,
+                CreatedAt = order1CreatedAt,
             },
         ];
         order1.TotalAmount = order1Details.Sum(od => od.Quantity * od.Price);
@@ -348,6 +370,7 @@ public class RestaurantDbContext(DbContextOptions<RestaurantDbContext> options)
                 MenuItemId = menuItem2.Id,
                 Quantity = 1,
                 Price = menuItem2.Price,
+                CreatedAt = order2CreatedAt,
             },
             new()
             {
@@ -355,6 +378,7 @@ public class RestaurantDbContext(DbContextOptions<RestaurantDbContext> options)
                 MenuItemId = menuItem4.Id,
                 Quantity = 3,
                 Price = menuItem4.Price,
+                CreatedAt = order2CreatedAt,
             },
         ];
         order2.TotalAmount = order2Details.Sum(od => od.Quantity * od.Price);
@@ -367,6 +391,7 @@ public class RestaurantDbContext(DbContextOptions<RestaurantDbContext> options)
                 MenuItemId = menuItem5.Id,
                 Quantity = 2,
                 Price = menuItem5.Price,
+                CreatedAt = order3CreatedAt,
             },
             new()
             {
@@ -374,6 +399,7 @@ public class RestaurantDbContext(DbContextOptions<RestaurantDbContext> options)
                 MenuItemId = menuItem6.Id,
                 Quantity = 1,
                 Price = menuItem6.Price,
+                CreatedAt = order3CreatedAt,
             },
         ];
         order3.TotalAmount = order3Details.Sum(od => od.Quantity * od.Price);

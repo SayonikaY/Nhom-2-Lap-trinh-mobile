@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'services/restaurant_api_service.dart';
+
 import 'screens/splash_screen.dart';
+import 'services/restaurant_api_service.dart';
 
 void main() {
   RestaurantApiService.initialize();

@@ -51,9 +51,10 @@ class Order {
     employeeId: json['employeeId'],
     employeeName: json['employeeName'],
     createdAt: DateTime.parse(json['createdAt']),
-    items: (json['items'] as List<dynamic>)
-        .map((item) => OrderDetail.fromJson(item))
-        .toList(),
+    items:
+        (json['items'] as List<dynamic>)
+            .map((item) => OrderDetail.fromJson(item))
+            .toList(),
   );
 
   Map<String, dynamic> toJson() {
@@ -116,11 +117,7 @@ class CreateOrderRequest {
   final String? note;
   final List<CreateOrderDetailRequest> items;
 
-  CreateOrderRequest({
-    required this.tableId,
-    this.note,
-    required this.items,
-  });
+  CreateOrderRequest({required this.tableId, this.note, required this.items});
 
   Map<String, dynamic> toJson() {
     return {
@@ -135,29 +132,19 @@ class CreateOrderDetailRequest {
   final String menuItemId;
   final int quantity;
 
-  CreateOrderDetailRequest({
-    required this.menuItemId,
-    required this.quantity,
-  });
+  CreateOrderDetailRequest({required this.menuItemId, required this.quantity});
 
   Map<String, dynamic> toJson() {
-    return {
-      'menuItemId': menuItemId,
-      'quantity': quantity,
-    };
+    return {'menuItemId': menuItemId, 'quantity': quantity};
   }
 }
 
 class UpdateOrderStatusRequest {
   final OrderStatus status;
 
-  UpdateOrderStatusRequest({
-    required this.status,
-  });
+  UpdateOrderStatusRequest({required this.status});
 
   Map<String, dynamic> toJson() {
-    return {
-      'status': status.value,
-    };
+    return {'status': status.value};
   }
 }

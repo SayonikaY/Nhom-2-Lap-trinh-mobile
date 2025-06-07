@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:nhom2_quanlynhahang/models/order.dart';
 
 import '../../models/table.dart';
 import '../../services/table_service.dart';
@@ -18,6 +19,8 @@ class _TableFormDialogState extends State<TableFormDialog> {
   final _capacityController = TextEditingController();
   final _descriptionController = TextEditingController();
   bool _isLoading = false;
+  bool _isAvailableForPreOrder = true;
+  Order? _currentOrder;
 
   bool get isEditing => widget.table != null;
 
@@ -28,6 +31,8 @@ class _TableFormDialogState extends State<TableFormDialog> {
       _nameController.text = widget.table!.name;
       _capacityController.text = widget.table!.capacity.toString();
       _descriptionController.text = widget.table!.description ?? '';
+      _isAvailableForPreOrder = widget.table!.isAvailableForPreOrder;
+      _currentOrder = widget.table!.currentOrder;
     }
   }
 
@@ -59,6 +64,7 @@ class _TableFormDialogState extends State<TableFormDialog> {
                   name: name,
                   capacity: capacity,
                   description: description.isEmpty ? null : description,
+                  isAvailable: _isAvailableForPreOrder,
                 ),
               )
               : await TableService.createTable(
@@ -147,6 +153,29 @@ class _TableFormDialogState extends State<TableFormDialog> {
               ),
               maxLines: 3,
               enabled: !_isLoading,
+            ),
+            const SizedBox(height: 16),
+            CheckboxListTile(
+              title: const Text('Available for Pre-order'),
+              subtitle: const Text(
+                'Allow customers to reserve this table in advance',
+              ),
+              value: _isAvailableForPreOrder,
+              onChanged:
+                  _isLoading
+                      ? null
+                      : (value) {
+                        setState(() {
+                          _isAvailableForPreOrder = value ?? true;
+                        });
+                      },
+              controlAffinity: ListTileControlAffinity.leading,
+              enabled:
+                  !_isLoading &&
+                  isEditing &&
+                  (_currentOrder == null ||
+                      _currentOrder!.status != OrderStatus.pending &&
+                          _currentOrder!.status != OrderStatus.inProgress),
             ),
           ],
         ),

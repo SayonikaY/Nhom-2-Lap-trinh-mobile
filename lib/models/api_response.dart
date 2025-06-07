@@ -3,11 +3,7 @@ class ApiException implements Exception {
   final int? statusCode;
   final dynamic data;
 
-  ApiException({
-    required this.message,
-    this.statusCode,
-    this.data,
-  });
+  ApiException({required this.message, this.statusCode, this.data});
 
   @override
   String toString() => 'ApiException: $message (Status: $statusCode)';
@@ -27,11 +23,7 @@ class ApiResponse<T> {
   });
 
   factory ApiResponse.success(T data, {int? statusCode}) =>
-      ApiResponse(
-        success: true,
-        statusCode: statusCode,
-        data: data,
-      );
+      ApiResponse(success: true, statusCode: statusCode, data: data);
 
   factory ApiResponse.error(String message, {int? statusCode, dynamic data}) =>
       ApiResponse(

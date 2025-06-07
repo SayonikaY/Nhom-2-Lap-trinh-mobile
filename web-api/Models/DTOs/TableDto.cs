@@ -15,6 +15,8 @@ public class TableDto
     public bool IsAvailable { get; set; }
 
     public DateTime CreatedAt { get; set; }
+
+    public OrderDto? CurrentOrder { get; set; }
 }
 
 public class CreateTableDto

@@ -176,7 +176,11 @@ public class OrdersController(RestaurantDbContext context) : ControllerBase
 
         context.Orders.Add(order);
         context.OrderDetails.AddRange(orderDetails);
+
         await context.SaveChangesAsync();
+
+        // Update table availability after creating order
+        await UpdateTableAvailability(order.TableId);
 
         // Load the created order with related data
         var createdOrder = await context.Orders
@@ -221,6 +225,7 @@ public class OrdersController(RestaurantDbContext context) : ControllerBase
             return BadRequest(ModelState);
 
         var order = await context.Orders
+            .Include(o => o.Table)
             .FirstOrDefaultAsync(o => o.Id == id && !o.IsDeleted);
 
         if (order is null)
@@ -232,7 +237,11 @@ public class OrdersController(RestaurantDbContext context) : ControllerBase
                 { message = $"Invalid status transition from {order.Status} to {updateStatusDto.Status}" });
 
         order.Status = updateStatusDto.Status;
+
         await context.SaveChangesAsync();
+
+        // Manage table availability based on order status
+        await UpdateTableAvailability(order.TableId);
 
         return Ok(new { message = "Order status updated successfully", status = order.Status });
     }
@@ -251,7 +260,11 @@ public class OrdersController(RestaurantDbContext context) : ControllerBase
             return BadRequest(new { message = "Only pending orders can be deleted" });
 
         order.IsDeleted = true;
+
         await context.SaveChangesAsync();
+
+        // Update table availability when order is deleted
+        await UpdateTableAvailability(order.TableId);
 
         return NoContent();
     }
@@ -277,5 +290,23 @@ public class OrdersController(RestaurantDbContext context) : ControllerBase
             OrderStatus.Cancelled => false, // Cancelled orders cannot be changed
             _ => false,
         };
+    }
+
+    private async Task UpdateTableAvailability(Guid tableId)
+    {
+        var table = await context.Tables.FirstOrDefaultAsync(t => t.Id == tableId && !t.IsDeleted);
+        if (table is null) return;
+
+        // Check if table has any active orders (Pending or InProgress)
+        // Completed and Cancelled orders should not affect table availability
+        var hasActiveOrders = await context.Orders
+            .AnyAsync(o => o.TableId == tableId && !o.IsDeleted &&
+                           (o.Status == OrderStatus.Pending || o.Status == OrderStatus.InProgress));
+
+        // Set table availability based on active orders
+        table.IsAvailable = !hasActiveOrders;
+
+        // Ensure changes are saved
+        await context.SaveChangesAsync();
     }
 }
