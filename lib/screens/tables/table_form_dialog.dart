@@ -19,7 +19,7 @@ class _TableFormDialogState extends State<TableFormDialog> {
   final _capacityController = TextEditingController();
   final _descriptionController = TextEditingController();
   bool _isLoading = false;
-  bool _isAvailableForPreOrder = true;
+  bool _isAvailableForReservation = true;
   Order? _currentOrder;
 
   bool get isEditing => widget.table != null;
@@ -31,7 +31,7 @@ class _TableFormDialogState extends State<TableFormDialog> {
       _nameController.text = widget.table!.name;
       _capacityController.text = widget.table!.capacity.toString();
       _descriptionController.text = widget.table!.description ?? '';
-      _isAvailableForPreOrder = widget.table!.isAvailableForPreOrder;
+      _isAvailableForReservation = widget.table!.isAvailableForPreOrder;
       _currentOrder = widget.table!.currentOrder;
     }
   }
@@ -64,7 +64,7 @@ class _TableFormDialogState extends State<TableFormDialog> {
                   name: name,
                   capacity: capacity,
                   description: description.isEmpty ? null : description,
-                  isAvailable: _isAvailableForPreOrder,
+                  isAvailable: _isAvailableForReservation,
                 ),
               )
               : await TableService.createTable(
@@ -156,26 +156,26 @@ class _TableFormDialogState extends State<TableFormDialog> {
             ),
             const SizedBox(height: 16),
             CheckboxListTile(
-              title: const Text('Available for Pre-order'),
+              title: const Text('Available for Reservation'),
               subtitle: const Text(
                 'Allow customers to reserve this table in advance',
               ),
-              value: _isAvailableForPreOrder,
+              value: _isAvailableForReservation,
               onChanged:
                   _isLoading
                       ? null
                       : (value) {
                         setState(() {
-                          _isAvailableForPreOrder = value ?? true;
+                          _isAvailableForReservation = value ?? true;
                         });
                       },
               controlAffinity: ListTileControlAffinity.leading,
               enabled:
                   !_isLoading &&
-                  isEditing &&
-                  (_currentOrder == null ||
-                      _currentOrder!.status != OrderStatus.pending &&
-                          _currentOrder!.status != OrderStatus.inProgress),
+                  (!isEditing ||
+                      _currentOrder == null ||
+                      (_currentOrder!.status != OrderStatus.pending &&
+                          _currentOrder!.status != OrderStatus.inProgress)),
             ),
           ],
         ),

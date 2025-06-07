@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../models/order.dart';
 import '../../models/table.dart';
 import '../../services/table_service.dart';
 import 'table_form_dialog.dart';
@@ -54,6 +55,85 @@ class _TablesScreenState extends State<TablesScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message), backgroundColor: Colors.red),
     );
+  }
+
+  Color _getStatusColor(OrderStatus status) {
+    switch (status) {
+      case OrderStatus.pending:
+        return Colors.orange;
+      case OrderStatus.inProgress:
+        return Colors.blue;
+      case OrderStatus.completed:
+        return Colors.green;
+      case OrderStatus.cancelled:
+        return Colors.red;
+    }
+  }
+
+  String _getOrderItemsPreview(List<OrderDetail> items) {
+    if (items.isEmpty) return 'No items';
+
+    // Show first 2-3 items with quantities
+    final previewItems =
+        items
+            .take(3)
+            .map((item) => '${item.quantity}x ${item.menuItemName}')
+            .toList();
+
+    String preview = previewItems.join(', ');
+
+    // If there are more items, add "and X more"
+    if (items.length > 3) {
+      preview += ', and ${items.length - 3} more';
+    }
+
+    return preview;
+  }
+
+  Color _getTableBackgroundColor(RestaurantTable table) {
+    if (table.currentOrder != null) {
+      // Has order - check if reserved or occupied
+      return table.isAvailable
+          ? Colors.blue.withValues(alpha: 0.1) // Reserved with order
+          : Colors.red.withValues(alpha: 0.1); // Occupied
+    } else {
+      // No order - check availability
+      return table.isAvailable
+          ? Colors.green.withValues(alpha: 0.1) // Available
+          : Colors.orange.withValues(alpha: 0.1); // Reserved without order
+    }
+  }
+
+  Color _getTableIconColor(RestaurantTable table) {
+    if (table.currentOrder != null) {
+      // Has order - check if reserved or occupied
+      return table.isAvailable
+          ? Colors
+              .blue // Reserved with order
+          : Colors.red; // Occupied
+    } else {
+      // No order - check availability
+      return table.isAvailable
+          ? Colors
+              .green // Available
+          : Colors.orange; // Reserved without order
+    }
+  }
+
+  String _getTableStatusText(RestaurantTable table) {
+    if (table.currentOrder != null) {
+      return table.isAvailable ? 'Available (Reserved)' : 'Occupied';
+    } else {
+      return table.isAvailable ? 'Available' : 'Reserved';
+    }
+  }
+
+  Color _getTableStatusColor(RestaurantTable table) {
+    if (table.currentOrder != null) {
+      return table.isAvailable ? Colors.blue : Colors.red;
+    } else {
+      return table.isAvailable ? Colors.green : Colors.orange;
+    }
   }
 
   Future<void> _showTableForm({RestaurantTable? table}) async {
@@ -160,20 +240,12 @@ class _TablesScreenState extends State<TablesScreen> {
                                 leading: Container(
                                   padding: const EdgeInsets.all(12),
                                   decoration: BoxDecoration(
-                                    color:
-                                        table.isAvailable
-                                            ? Colors.green.withValues(
-                                              alpha: 0.1,
-                                            )
-                                            : Colors.red.withValues(alpha: 0.1),
+                                    color: _getTableBackgroundColor(table),
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   child: Icon(
                                     Icons.table_restaurant,
-                                    color:
-                                        table.isAvailable
-                                            ? Colors.green
-                                            : Colors.red,
+                                    color: _getTableIconColor(table),
                                   ),
                                 ),
                                 title: Text(
@@ -186,17 +258,92 @@ class _TablesScreenState extends State<TablesScreen> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text('Capacity: ${table.capacity} people'),
-                                    if (table.description?.isNotEmpty == true)
-                                      Text(table.description!),
+                                    if (table.currentOrder != null) ...[
+                                      Text(
+                                        'Order: ${table.currentOrder!.number}',
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                      Row(
+                                        children: [
+                                          Text(
+                                            'Status: ${table.currentOrder!.status.displayName}',
+                                            style: TextStyle(
+                                              color: _getStatusColor(
+                                                table.currentOrder!.status,
+                                              ),
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                          if (table.isAvailable &&
+                                              table.currentOrder != null)
+                                            Container(
+                                              margin: const EdgeInsets.only(
+                                                left: 8,
+                                              ),
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 6,
+                                                    vertical: 2,
+                                                  ),
+                                              decoration: BoxDecoration(
+                                                color: Colors.blue.withValues(
+                                                  alpha: 0.1,
+                                                ),
+                                                borderRadius:
+                                                    BorderRadius.circular(4),
+                                                border: Border.all(
+                                                  color: Colors.blue,
+                                                  width: 1,
+                                                ),
+                                              ),
+                                              child: const Text(
+                                                'RESERVED',
+                                                style: TextStyle(
+                                                  fontSize: 10,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: Colors.blue,
+                                                ),
+                                              ),
+                                            ),
+                                        ],
+                                      ),
+                                      if (table
+                                          .currentOrder!
+                                          .items
+                                          .isNotEmpty) ...[
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          'Items: ${_getOrderItemsPreview(table.currentOrder!.items)}',
+                                          style: const TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.grey,
+                                          ),
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ],
+                                      if (table
+                                              .currentOrder!
+                                              .note
+                                              ?.isNotEmpty ==
+                                          true)
+                                        Text(
+                                          'Note: ${table.currentOrder!.note!}',
+                                          style: const TextStyle(
+                                            fontSize: 12,
+                                            fontStyle: FontStyle.italic,
+                                          ),
+                                        ),
+                                    ] else ...[
+                                      if (table.description?.isNotEmpty == true)
+                                        Text(table.description!),
+                                    ],
                                     Text(
-                                      table.isAvailable
-                                          ? 'Available'
-                                          : 'Occupied',
+                                      _getTableStatusText(table),
                                       style: TextStyle(
-                                        color:
-                                            table.isAvailable
-                                                ? Colors.green
-                                                : Colors.red,
+                                        color: _getTableStatusColor(table),
                                         fontWeight: FontWeight.w500,
                                       ),
                                     ),
