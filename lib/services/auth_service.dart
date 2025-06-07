@@ -55,6 +55,22 @@ class AuthService {
     );
   }
 
+  /// Get employee sales summary for a specific date (defaults to today)
+  static Future<ApiResponse<EmployeeSalesSummary>> getSalesSummary({
+    DateTime? date,
+  }) async {
+    final queryParams = <String, String>{};
+    if (date != null) {
+      queryParams['date'] = date.toIso8601String();
+    }
+
+    return await ApiClient.get(
+      '$_endpoint/sales-summary',
+      (json) => EmployeeSalesSummary.fromJson(json),
+      queryParams: queryParams.isNotEmpty ? queryParams : null,
+    );
+  }
+
   /// Logout (clear auth token)
   static Future<void> logout() async {
     ApiClient.setAuthToken(null);
